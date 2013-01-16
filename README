@@ -1,0 +1,8 @@
+nisc - Not Intelligent SMTP Client
+
+This is just another stupid SMTP client that can send email via a SMTP server.
+The goal of this project is to create a minimal client for embedded systems
+which need to support SSL/TLS. 
+
+SSL libraries supported:
+- axTLS
