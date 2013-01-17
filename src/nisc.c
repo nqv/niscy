@@ -27,13 +27,14 @@ static struct smtp_t smtp_ = {
         .user       = NULL,
         .pass       = NULL,
         .domain     = "nisc",
-        .auth       = "PLAIN",
+        .auth       = NULL,
         .options    = NISC_OPTION_SSL,
         .fd         = -1,
         .ssl_ctx    = NULL,
         .ssl        = NULL,
 };
 
+/* Helpers */
 
 static void parse_args(int argc, char **argv) {
     int i = 1;
@@ -141,25 +142,143 @@ static int get_smtp_code() {
     return atoi(lastline);
 }
 
-static int nisc_connect() {
-    int rv;
+static int auth_login() {
+    int len, rv;
 
-    if (smtp_open(&smtp_) != 0) {
-        fprintf(stderr, "Could not connect to SMTP server.\n");
-        return 1;
+    /* Send authentication */
+    if (smtp_write(&smtp_, "AUTH LOGIN\r\n", sizeof("AUTH LOGIN\r\n")) <= 0) {
+        return -1;
+    }
+    rv = get_smtp_code();
+    if (rv < 300 || rv >= 400) {
+        NISC_ERR("AUTH LOGIN failed %d.\n", rv);
+        return -1;
+    }
+    /* Username */
+    len = base64_encode(smtp_.user, strlen(smtp_.user), buf_,
+            sizeof(buf_) - 2);      /* Reserved for \r\n */
+    if (len < 0) {
+        NISC_ERR("Could not encode username.\n");
+        return -1;
+    }
+    buf_[len++] = '\r';
+    buf_[len++] = '\n';
+    if (smtp_write(&smtp_, buf_, len) <= 0) {
+        return -1;
+    }
+    rv = get_smtp_code();
+    if (rv < 300 || rv >= 400) {
+        NISC_ERR("AUTH/Username failed %d.\n", rv);
+        return -1;
+    }
+    /* Password */
+    if (smtp_.pass != NULL) {
+        len = base64_encode(smtp_.pass, strlen(smtp_.pass), buf_,
+                sizeof(buf_) - 2);  /* Reserved for \r\n */
+        if (len < 0) {
+            NISC_ERR("Could not encode password.\n");
+            return -1;
+        }
+    } else {
+        len = 0;
+    }
+    buf_[len++] = '\r';
+    buf_[len++] = '\n';
+    if (smtp_write(&smtp_, buf_, len) <= 0) {
+        return -1;
     }
     rv = get_smtp_code();
     if (rv < 200 || rv >= 300) {
-        fprintf(stderr, "Invalid response %d.\n", rv);
+        NISC_ERR("Authentication failed %d.\n", rv);
         return -1;
     }
     return 0;
 }
 
+/*
+ * AUTH PLAIN authorization-id\0authentication-id\0passwd
+ */
+static int auth_plain() {
+    int len, rv;
+    char message[512];          /* Combination of username and password */
+
+    /* Send authentication */
+    if (smtp_write(&smtp_, "AUTH PLAIN\r\n", sizeof("AUTH PLAIN\r\n")) <= 0) {
+        return -1;
+    }
+    rv = get_smtp_code();
+    if (rv < 300 || rv >= 400) {
+        NISC_ERR("AUTH PLAIN failed %d.\n", rv);
+        return -1;
+    }
+    /* Authorization */
+    len = snprintf(message, sizeof(message), "%s", smtp_.user);
+    message[len++] = '\0';
+    /* Authentication */
+    len += snprintf(message + len, sizeof(message) - len, "%s", smtp_.user);
+    message[len++] = '\0';
+    /* Password */
+    if (smtp_.pass != NULL) {
+        len += snprintf(message + len, sizeof(message) - len, "%s", smtp_.pass);
+    }
+    message[len++] = '\0';
+
+    /* Encode and send */
+    len = base64_encode(message, len, buf_, sizeof(buf_) - 2);
+    if (len < 0) {
+        NISC_ERR("Could not encode authentication.\n");
+        return -1;
+    }
+    buf_[len++] = '\r';
+    buf_[len++] = '\n';
+    if (smtp_write(&smtp_, buf_, len) <= 0) {
+        return -1;
+    }
+    rv = get_smtp_code();
+    if (rv < 200 || rv >= 300) {
+        NISC_ERR("Authentication failed %d.\n", rv);
+        return -1;
+    }
+    return 0;
+}
+
+static int mail_from() {
+    return 0;
+}
+
+static int mail_to() {
+    return 0;
+}
+
+/* Main functions */
+
+static int nisc_connect() {
+    int rv;
+
+    if (smtp_open(&smtp_) != 0) {
+        NISC_ERR("Could not connect to SMTP server.\n");
+        return 1;
+    }
+    rv = get_smtp_code();
+    if (rv < 200 || rv >= 300) {
+        smtp_close(&smtp_);
+        NISC_ERR("Invalid response %d.\n", rv);
+        return -1;
+    }
+    return 0;
+}
+
+static void nisc_disconnect() {
+    smtp_write(&smtp_, "QUIT\r\n", sizeof("QUIT\r\n"));
+    smtp_close(&smtp_);
+
+    NISC_LOG("Bye.\n");
+}
+
 /* Server requires login
  * username must not be empty
  */
-static int nisc_login() {
+static int nisc_auth() {
     int len, rv;
 
     /* Try EHLO if username is provided */
@@ -175,55 +294,23 @@ static int nisc_login() {
         return -1;
     }
     if (smtp_.user != NULL) {
-        /* Send authentication */
-        len = snprintf(buf_, sizeof(buf_), "AUTH LOGIN\r\n");
-        if (smtp_write(&smtp_, buf_, len) <= 0) {
-            return -1;
+        if (smtp_.auth == NULL || strcasecmp(smtp_.auth, "login") == 0) {
+            return auth_login();
         }
-        rv = get_smtp_code();
-        if (rv < 300 || rv >= 400) {
-            fprintf(stderr, "AUTH LOGIN failed %d.\n", rv);
-            return -1;
+        if (strcasecmp(smtp_.auth, "plain") == 0) {
+            return auth_plain();
         }
-        /* Username */
-        len = base64_encode(smtp_.user, strlen(smtp_.user), buf_,
-                sizeof(buf_) - 2);
-        if (len < 0) {
-            fprintf(stderr, "Could not encode username.\n");
-            return -1;
-        }
-        buf_[len++] = '\r';
-        buf_[len++] = '\n';
-        if (smtp_write(&smtp_, buf_, len) <= 0) {
-            return -1;
-        }
-        rv = get_smtp_code();
-        if (rv < 300 || rv >= 400) {
-            fprintf(stderr, "AUTH/Username failed %d.\n", rv);
-            return -1;
-        }
-        /* Password */
-        if (IS_EMPTY_(smtp_.pass)) {
-            len = 0;
-        } else {
-            len = base64_encode(smtp_.pass, strlen(smtp_.pass), buf_,
-                    sizeof(buf_) - 2);
-            if (len < 0) {
-                fprintf(stderr, "Could not encode password.\n");
-                return -1;
-            }
-        }
-        buf_[len++] = '\r';
-        buf_[len++] = '\n';
-        if (smtp_write(&smtp_, buf_, len) <= 0) {
-            return -1;
-        }
-        rv = get_smtp_code();
-        if (rv < 200 || rv >= 300) {
-            fprintf(stderr, "Authentication failed %d.\n", rv);
-            return -1;
-        }
+        NISC_ERR("Authentication method is not supported: %s.\n", smtp_.auth);
+        return -1;
     }
+    return 0;
+}
+
+static int nisc_mail() {
+    mail_from();
+
+    mail_to();
+
     return 0;
 }
 
@@ -233,13 +320,10 @@ int main(int argc, char **argv) {
     if (check_settings() != 0) {
         return 1;
     }
-    if (nisc_connect() != 0) {
-        return 1;
+    if ((nisc_connect() == 0) && (nisc_auth() == 0)) {
+        nisc_mail();
     }
-    if (nisc_login() != 0) {
-        return 1;
-    }
-    smtp_close(&smtp_);
+    nisc_disconnect();
     return 0;
 }
 
