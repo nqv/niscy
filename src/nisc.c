@@ -180,16 +180,64 @@ static int get_smtp_code() {
     return atoi(lastline);
 }
 
+static int probe() {
+    int len;
+
+    if (smtp_open(&smtp_) != 0) {
+        NISC_ERR("Could not connect to server.\n");
+        return 1;
+    }
+    len = get_smtp_code();
+    if (len < 200 || len >= 300) {
+        NISC_ERR("Unexpected server response: %d.\n", len);
+        return -1;
+    }
+    return 0;
+}
+
+static int ehlo() {
+    int len;
+
+    /* Try EHLO if username is provided */
+    len = snprintf(buf_, sizeof(buf_),
+            (smtp_.user != NULL) ? "EHLO %s\r\n" : "HELO %s\r\n", smtp_.domain);
+    if (smtp_write(&smtp_, buf_, len) <= 0) {
+        return -1;
+    }
+    /* Check response code */
+    len = get_smtp_code();
+    if (len < 200 || len >= 300) {
+        NISC_ERR("Unexpected EHLO response: %d.\n", len);
+        return -1;
+    }
+    return 0;
+}
+
+static int starttls() {
+    int len;
+
+    if (smtp_write(&smtp_, "STARTTLS\r\n", 10) <= 0) {
+        smtp_close(&smtp_);
+        return -1;
+    }
+    len = get_smtp_code();
+    if (len < 200 || len >= 300) {
+        NISC_ERR("Server does not accept STARTTLS: %d.\n", len);
+        return -1;
+    }
+    return 0;
+}
+
 static int auth_login() {
-    int len, rv;
+    int len;
 
     /* Send authentication */
     if (smtp_write(&smtp_, "AUTH LOGIN\r\n", 12) <= 0) {
         return -1;
     }
-    rv = get_smtp_code();
-    if (rv < 300 || rv >= 400) {
-        NISC_ERR("Invalid response AUTH LOGIN: %d.\n", rv);
+    len = get_smtp_code();
+    if (len < 300 || len >= 400) {
+        NISC_ERR("Unexpected AUTH LOGIN response: %d.\n", len);
         return -1;
     }
     /* Username */
@@ -204,9 +252,9 @@ static int auth_login() {
     if (smtp_write(&smtp_, buf_, len) <= 0) {
         return -1;
     }
-    rv = get_smtp_code();
-    if (rv < 300 || rv >= 400) {
-        NISC_ERR("Invalid response AUTH/Username: %d.\n", rv);
+    len = get_smtp_code();
+    if (len < 300 || len >= 400) {
+        NISC_ERR("Unexpected AUTH/Username response: %d.\n", len);
         return -1;
     }
     /* Password */
@@ -225,9 +273,9 @@ static int auth_login() {
     if (smtp_write(&smtp_, buf_, len) <= 0) {
         return -1;
     }
-    rv = get_smtp_code();
-    if (rv < 200 || rv >= 300) {
-        NISC_ERR("Authentication failed %d.\n", rv);
+    len = get_smtp_code();
+    if (len < 200 || len >= 300) {
+        NISC_ERR("Authentication failed %d.\n", len);
         return -1;
     }
     return 0;
@@ -237,16 +285,16 @@ static int auth_login() {
  * AUTH PLAIN authorization-id\0authentication-id\0passwd
  */
 static int auth_plain() {
-    int len, rv;
+    int len;
     char message[512];          /* Combination of username and password */
 
     /* Send authentication */
     if (smtp_write(&smtp_, "AUTH PLAIN\r\n", 12) <= 0) {
         return -1;
     }
-    rv = get_smtp_code();
-    if (rv < 300 || rv >= 400) {
-        NISC_ERR("Invalid response AUTH PLAIN: %d.\n", rv);
+    len = get_smtp_code();
+    if (len < 300 || len >= 400) {
+        NISC_ERR("Unexpected AUTH PLAIN response: %d.\n", len);
         return -1;
     }
     /* Authorization */
@@ -272,31 +320,31 @@ static int auth_plain() {
     if (smtp_write(&smtp_, buf_, len) <= 0) {
         return -1;
     }
-    rv = get_smtp_code();
-    if (rv < 200 || rv >= 300) {
-        NISC_ERR("Authentication failed %d.\n", rv);
+    len = get_smtp_code();
+    if (len < 200 || len >= 300) {
+        NISC_ERR("Authentication failed %d.\n", len);
         return -1;
     }
     return 0;
 }
 
 static int mail_from() {
-    int len, rv;
+    int len;
 
     len = snprintf(buf_, sizeof(buf_), "MAIL FROM:<%s>\r\n", smtp_.mail_from);
     if (smtp_write(&smtp_, buf_, len) <= 0) {
         return -1;
     }
-    rv = get_smtp_code();
-    if (rv < 200 || rv >= 300) {
-        NISC_ERR("Invalid MAIL FROM %d.\n", rv);
+    len = get_smtp_code();
+    if (len < 200 || len >= 300) {
+        NISC_ERR("Invalid MAIL FROM %d.\n", len);
         return -1;
     }
     return 0;
 }
 
-static int mail_to() {
-    int len, rv;
+static int rcpt_to() {
+    int len;
     int i;
     int count = 0;
     const char *addr;
@@ -310,9 +358,9 @@ static int mail_to() {
         if (smtp_write(&smtp_, buf_, len) <= 0) {
             return -1;
         }
-        rv = get_smtp_code();
-        if (rv < 200 || rv >= 300) {
-            NISC_ERR("Invalid response RCPT TO <%s>: %d.\n", addr, rv);
+        len = get_smtp_code();
+        if (len < 200 || len >= 300) {
+            NISC_ERR("Invalid RCPT TO <%s>: %d.\n", addr, len);
             /* Continue */
         } else {
             ++count;
@@ -322,14 +370,14 @@ static int mail_to() {
 }
 
 static int mail_data() {
-    int len, rv;
+    int len;
 
     if (smtp_write(&smtp_, "DATA\r\n", 6) <= 0) {
         return -1;
     }
-    rv = get_smtp_code();
-    if (rv < 300 || rv >= 400) {
-        NISC_ERR("DATA failed %d.\n", rv);
+    len = get_smtp_code();
+    if (len < 300 || len >= 400) {
+        NISC_ERR("Unexpected DATA response: %d.\n", len);
         return -1;
     }
     /* Append our headers */
@@ -349,7 +397,7 @@ static int mail_data() {
  * inserted */
 static int mail_stream(FILE *stream) {
     int is_chunk;
-    int len, rv;
+    int len;
     char *line;
 
     buf_[0] = '.';
@@ -395,29 +443,36 @@ static int mail_stream(FILE *stream) {
     }
     smtp_write(&smtp_, ".\r\n", 3);
 
-    rv = get_smtp_code();
-    if (rv < 200 || rv >= 300) {
-        NISC_ERR("Could not send message: %d.\n", rv);
+    len = get_smtp_code();
+    if (len < 200 || len >= 300) {
+        NISC_ERR("Could not send message: %d.\n", len);
         return -1;
     }
-
     return 0;
 }
 
 /* Main functions */
 
 static int nisc_connect() {
-    int rv;
-
-    if (smtp_open(&smtp_) != 0) {
-        NISC_ERR("Could not connect to SMTP server.\n");
-        return 1;
-    }
-    rv = get_smtp_code();
-    if (rv < 200 || rv >= 300) {
-        smtp_close(&smtp_);
-        NISC_ERR("Invalid response CONNECT: %d.\n", rv);
-        return -1;
+    if (smtp_.options & NISC_OPTION_STARTTLS) {
+        /* Temporary disable SSL handshaking to ask server for STARTTLS */
+        smtp_.options &= ~NISC_OPTION_TLS;
+        if ((probe() != 0) || (ehlo() != 0) || (starttls() != 0)) {
+            smtp_close(&smtp_);
+            return -1;
+        }
+        /* Re-enable SSL and negotiate again */
+        smtp_.options |= NISC_OPTION_TLS;
+        if (smtp_open(&smtp_) != 0) {
+            NISC_ERR("Could not negotiate secure connection.\n");
+            smtp_close(&smtp_);
+            return -1;
+        }
+    } else {
+        if ((probe() != 0) || (ehlo() != 0)) {
+            smtp_close(&smtp_);
+            return -1;
+        }
     }
     return 0;
 }
@@ -433,20 +488,6 @@ static void nisc_disconnect() {
  * username must not be empty
  */
 static int nisc_auth() {
-    int len, rv;
-
-    /* Try EHLO if username is provided */
-    len = snprintf(buf_, sizeof(buf_),
-            (smtp_.user != NULL) ? "EHLO %s\r\n" : "HELO %s\r\n", smtp_.domain);
-    if (smtp_write(&smtp_, buf_, len) <= 0) {
-        return -1;
-    }
-    /* Check response code */
-    rv = get_smtp_code();
-    if (rv < 200 || rv >= 300) {
-        fprintf(stderr, "HELO failed %d.\n", rv);
-        return -1;
-    }
     if (smtp_.user != NULL) {
         if (smtp_.auth == NULL || strcasecmp(smtp_.auth, "login") == 0) {
             return auth_login();
@@ -456,6 +497,8 @@ static int nisc_auth() {
         }
         NISC_ERR("Authentication method is not supported: %s.\n", smtp_.auth);
         return -1;
+    } else {
+        NISC_LOG("Not to authenticate.\n");
     }
     return 0;
 }
@@ -463,7 +506,7 @@ static int nisc_auth() {
 /* Send mail body */
 static int nisc_mail() {
     if ((mail_from() != 0)
-            || (mail_to() != 0)
+            || (rcpt_to() != 0)
             || (mail_data() != 0)
             || (mail_stream(stdin) != 0)) {
         return -1;
