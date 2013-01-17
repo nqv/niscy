@@ -35,8 +35,10 @@ static struct smtp_t smtp_ = {
 
         .options    = NISC_OPTION_SSL,
         .fd         = -1,
+#ifdef NISC_SSL
         .ssl_ctx    = NULL,
         .ssl        = NULL,
+#endif
 };
 
 /* Helpers */
@@ -177,7 +179,7 @@ static int auth_login() {
     int len, rv;
 
     /* Send authentication */
-    if (smtp_write(&smtp_, "AUTH LOGIN\r\n", sizeof("AUTH LOGIN\r\n")) <= 0) {
+    if (smtp_write(&smtp_, "AUTH LOGIN\r\n", 12) <= 0) {
         return -1;
     }
     rv = get_smtp_code();
@@ -188,8 +190,8 @@ static int auth_login() {
     /* Username */
     len = base64_encode(smtp_.user, strlen(smtp_.user), buf_,
             sizeof(buf_) - 2);      /* Reserved for \r\n */
+    NISC_LOG(">>> User [%s] / %d\n", buf_, len);
     if (len < 0) {
-        NISC_ERR("Could not encode username.\n");
         return -1;
     }
     buf_[len++] = '\r';
@@ -234,7 +236,7 @@ static int auth_plain() {
     char message[512];          /* Combination of username and password */
 
     /* Send authentication */
-    if (smtp_write(&smtp_, "AUTH PLAIN\r\n", sizeof("AUTH PLAIN\r\n")) <= 0) {
+    if (smtp_write(&smtp_, "AUTH PLAIN\r\n", 12) <= 0) {
         return -1;
     }
     rv = get_smtp_code();
@@ -317,7 +319,7 @@ static int mail_to() {
 static int mail_data() {
     int len, rv;
 
-    if (smtp_write(&smtp_, "DATA\r\n", sizeof("DATA\r\n")) <= 0) {
+    if (smtp_write(&smtp_, "DATA\r\n", 6) <= 0) {
         return -1;
     }
     rv = get_smtp_code();
@@ -384,9 +386,9 @@ static int mail_stream(FILE *stream) {
     }
     /* Terminate */
     if (is_chunk) {     /* Not yet having CRLF */
-        smtp_write(&smtp_, "\r\n", sizeof("\r\n"));
+        smtp_write(&smtp_, "\r\n", 2);
     }
-    smtp_write(&smtp_, ".\r\n", sizeof(".\r\n"));
+    smtp_write(&smtp_, ".\r\n", 3);
 
     rv = get_smtp_code();
     if (rv < 200 || rv >= 300) {
@@ -416,7 +418,7 @@ static int nisc_connect() {
 }
 
 static void nisc_disconnect() {
-    smtp_write(&smtp_, "QUIT\r\n", sizeof("QUIT\r\n"));
+    smtp_write(&smtp_, "QUIT\r\n", 6);
     smtp_close(&smtp_);
 
     NISC_LOG("Bye.\n");

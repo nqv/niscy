@@ -35,8 +35,10 @@ struct smtp_t {
 
     int options;
     int fd;                 /* Socket fd */
+#ifdef NISC_SSL
     void *ssl_ctx;          /* SSL_CTX */
     void *ssl;              /* SSL */
+#endif
 };
 
 /* smtp.c */
