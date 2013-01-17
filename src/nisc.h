@@ -6,6 +6,8 @@
 #ifndef NISC_H_
 #define NISC_H_
 
+#include "version.h"
+
 #define NISC_ERR(...)                   fprintf(stderr, __VA_ARGS__)
 #ifdef DEBUG
 # define NISC_LOG(...)                  fprintf(stdout, __VA_ARGS__)
@@ -22,10 +24,15 @@
 struct smtp_t {
     const char *host;       /* Server */
     const char *port;       /* Port */
+
     const char *user;       /* Username */
     const char *pass;       /* Password */
     const char *domain;     /* Port */
     const char *auth;       /* Authentication method */
+
+    const char *mail_from;  /* FROM address */
+    const char **mail_to;   /* List of TO addresses */
+
     int options;
     int fd;                 /* Socket fd */
     void *ssl_ctx;          /* SSL_CTX */
