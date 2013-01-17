@@ -33,12 +33,11 @@ static struct smtp_t smtp_ = {
         .mail_from  = NULL,
         .mail_to    = NULL,
 
-        .options    = NISC_OPTION_SSL,
+        .options    = 0,
         .fd         = -1,
-#ifdef NISC_SSL
+
         .ssl_ctx    = NULL,
         .ssl        = NULL,
-#endif
 };
 
 /* Helpers */
@@ -76,6 +75,12 @@ static void parse_args(int argc, char **argv) {
             break;
         case 'p':   /* Port */
             SAVE_ARG_(smtp_.port, arg, argv, i);
+            break;
+        case 's':   /* STARTTLS */
+            smtp_.options |= (NISC_OPTION_TLS | NISC_OPTION_STARTTLS);
+            break;
+        case 't':   /* SSL/TLS */
+            smtp_.options |= NISC_OPTION_TLS;
             break;
         }
         /* Advance to next argument */

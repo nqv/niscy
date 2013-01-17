@@ -18,7 +18,7 @@
 #define NISC_MAX_RESPONSE_LEN           1024
 #define NISC_TIMEOUT                    30      /* Seconds */
 
-#define NISC_OPTION_SSL                 (1 << 0)
+#define NISC_OPTION_TLS                 (1 << 0)
 #define NISC_OPTION_STARTTLS            (1 << 1)
 
 struct smtp_t {
@@ -35,14 +35,12 @@ struct smtp_t {
 
     int options;
     int fd;                 /* Socket fd */
-#ifdef NISC_SSL
+
     void *ssl_ctx;          /* SSL_CTX */
     void *ssl;              /* SSL */
-#endif
 };
 
 /* smtp.c */
-void smtp_init(struct smtp_t *self);
 int smtp_open(struct smtp_t *self);
 void smtp_close(struct smtp_t *self);
 int smtp_write(struct smtp_t *self, const char *data, int len);

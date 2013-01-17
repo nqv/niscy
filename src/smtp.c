@@ -72,36 +72,40 @@ static int create_socket(const char *addr, const char *port) {
 }
 
 int smtp_write(struct smtp_t *self, const char *data, int len) {
+    if (self->options & NISC_OPTION_TLS) {
 #ifdef NISC_AXTLS
-    return ssl_write(self->ssl, (const uint8_t *)data, len);
-#else
+        return ssl_write(self->ssl, (const uint8_t *)data, len);
+#endif  /* NISC_AXTLS */
+    }
     return send(self->fd, data, len, MSG_NOSIGNAL);
-#endif
 }
 
 int smtp_read(struct smtp_t *self, char *data, int sz) {
+    if (self->options & NISC_OPTION_TLS) {
 #ifdef NISC_AXTLS
-    uint8_t *out_data;
-    int len;
+        uint8_t *out_data;
+        int len;
 
-    len = ssl_read(self->ssl, &out_data);
-    if (len > 0) {
-        memcpy(data, out_data, (len > sz) ? sz : len);
+        len = ssl_read(self->ssl, &out_data);
+        if (len > 0) {
+            memcpy(data, out_data, (len > sz) ? sz : len);
+        }
+        return len;
+#endif  /* NISC_AXTLS */
     }
-    return len;
-#else
     return recv(self->fd, data, sz, 0);
-#endif
 }
 
 int smtp_open(struct smtp_t *self) {
     /* Create socket descriptor */
-    self->fd = create_socket(self->host, self->port);
-    if (self->fd < 0) {
-        return -1;
+    if (self->fd == -1) {
+        self->fd = create_socket(self->host, self->port);
+        if (self->fd < 0) {
+            return -1;
+        }
     }
+    if (self->options & NISC_OPTION_TLS) {  /* AxTLS */
 #ifdef NISC_AXTLS
-    {   /* AxTLS */
         uint32_t options = SSL_SERVER_VERIFY_LATER | SSL_DISPLAY_STATES;
         /* SSL context */
         self->ssl_ctx = ssl_ctx_new(options, 5);
@@ -116,8 +120,8 @@ int smtp_open(struct smtp_t *self) {
             smtp_close(self);
             return -1;
         }
+#endif  /* NISC_AXTLS */
     }
-#endif
     return 0;
 }
 
@@ -131,7 +135,7 @@ void smtp_close(struct smtp_t *self) {
         ssl_ctx_free(self->ssl_ctx);
         self->ssl_ctx = NULL;
     }
-#endif
+#endif  /* NISC_AXTLS */
     if (self->fd != -1) {
         close(self->fd);
         self->fd = -1;

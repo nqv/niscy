@@ -1,6 +1,6 @@
 # NISC - Not Intelligent SMTP Client
 
-SSL ?= AXTLS
+TLS ?= AXTLS
 AXTLS_CFLAGS ?= -I/mnt/src/axtls/trunk/_stage/include
 AXTLS_LDFLAGS ?= -L/mnt/src/axtls/trunk/_stage/lib
 AXTLS_LIBS ?= -laxtls
@@ -21,8 +21,8 @@ else
 CFLAGS += -DNDEBUG
 endif
 
-ifeq (${SSL},AXTLS)
-CFLAGS += -DNISC_SSL -DNISC_AXTLS
+ifeq (${TLS},AXTLS)
+CFLAGS += -DNISC_AXTLS
 CFLAGS += ${AXTLS_CFLAGS}
 LDFLAGS += ${AXTLS_LDFLAGS}
 LIBS += ${AXTLS_LIBS}
