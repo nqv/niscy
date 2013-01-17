@@ -6,6 +6,7 @@
 #ifndef NISC_H_
 #define NISC_H_
 
+#define NISC_ERR(...)                   fprintf(stderr, __VA_ARGS__)
 #ifdef DEBUG
 # define NISC_LOG(...)                  fprintf(stdout, __VA_ARGS__)
 #else
@@ -13,6 +14,7 @@
 #endif
 
 #define NISC_MAX_RESPONSE_LEN           1024
+#define NISC_TIMEOUT                    30      /* Seconds */
 
 #define NISC_OPTION_SSL                 (1 << 0)
 #define NISC_OPTION_STARTTLS            (1 << 1)

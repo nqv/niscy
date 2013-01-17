@@ -19,6 +19,7 @@
 
 static int create_socket(const char *addr, const char *port) {
     struct addrinfo hints, *info, *p;
+    struct timeval timeout;
     int rv;
     int fd;
 
@@ -28,30 +29,41 @@ static int create_socket(const char *addr, const char *port) {
 
     rv = getaddrinfo(addr, port, &hints, &info);
     if (rv != 0) {
-        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(rv));
+        NISC_ERR("getaddrinfo: %s\n", gai_strerror(rv));
         return -1;
     }
 
-    // loop through all the results and connect to the first we can
+    /* Connect to the first address */
     for (p = info; p != NULL; p = p->ai_next) {
         fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
         if (fd == -1) {
-            perror("client: socket");
+            NISC_ERR("socket: %s", strerror(errno));
             continue;
         }
         if (connect(fd, p->ai_addr, p->ai_addrlen) == -1) {
             close(fd);
-            perror("client: connect");
+            NISC_ERR("connect: %s", strerror(errno));
             continue;
         }
         break;
     }
+    freeaddrinfo(info);
     if (p == NULL) {
-        fprintf(stderr, "client: failed to connect\n");
-        return 2;
+        NISC_ERR("Failed to connect\n");
+        return -1;
     }
 
-    freeaddrinfo(info); // all done with this structure
+    /* Socket timeout */
+    timeout.tv_sec = NISC_TIMEOUT;
+    timeout.tv_usec = 0;
+    if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (char *) &timeout,
+            sizeof(timeout)) < 0) {
+        NISC_ERR("setsockopt SO_RCVTIMEO: %s\n", strerror(errno));
+    }
+    if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (char *) &timeout,
+            sizeof(timeout)) < 0) {
+        NISC_ERR("setsockopt SO_SNDTIMEO: %s\n", strerror(errno));
+    }
 
     return fd;
 }
