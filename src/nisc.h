@@ -24,6 +24,7 @@
 struct smtp_t {
     const char *host;       /* Server */
     const char *port;       /* Port */
+    const char *security;   /* TLS/SSL */
 
     const char *user;       /* Username */
     const char *pass;       /* Password */

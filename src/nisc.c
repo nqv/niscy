@@ -24,7 +24,8 @@ static char buf_[NISC_MAX_RESPONSE_LEN];
 
 static struct smtp_t smtp_ = {
         .host       = "127.0.0.1",
-        .port       = "27",
+        .port       = "25",
+        .security   = NULL,
         .user       = NULL,
         .pass       = NULL,
         .domain     = "nisc",
@@ -76,11 +77,8 @@ static void parse_args(int argc, char **argv) {
         case 'p':   /* Port */
             SAVE_ARG_(smtp_.port, arg, argv, i);
             break;
-        case 's':   /* STARTTLS */
-            smtp_.options |= (NISC_OPTION_TLS | NISC_OPTION_STARTTLS);
-            break;
-        case 't':   /* SSL/TLS */
-            smtp_.options |= NISC_OPTION_TLS;
+        case 's':   /* Security */
+            SAVE_ARG_(smtp_.security, arg, argv, i);
             break;
         }
         /* Advance to next argument */
@@ -108,6 +106,17 @@ static int check_settings() {
     if ((smtp_.mail_to == NULL) || (*smtp_.mail_to == NULL)) {
         NISC_ERR("Receipt address must not be empty.\n");
         return -1;
+    }
+    /* Enable TLS */
+    if (smtp_.security != NULL) {
+        if (strcasecmp(smtp_.security, "starttls") == 0) {
+            smtp_.options |= (NISC_OPTION_TLS | NISC_OPTION_STARTTLS);
+        } else if (strcasecmp(smtp_.security, "tls") == 0) {
+            smtp_.options |= NISC_OPTION_TLS;
+        } else {
+            NISC_ERR("Encrypted method is not supported.\n");
+            return -1;
+        }
     }
     return 0;
 }

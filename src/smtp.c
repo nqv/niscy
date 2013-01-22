@@ -97,7 +97,8 @@ int smtp_read(struct smtp_t *self, char *data, int sz) {
 }
 
 int smtp_open(struct smtp_t *self) {
-    /* Create socket descriptor */
+    /* Create socket descriptor. The socket is checked as this function
+     * is reinvoked in STARTTLS mode */
     if (self->fd == -1) {
         self->fd = create_socket(self->host, self->port);
         if (self->fd < 0) {
