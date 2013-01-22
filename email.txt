@@ -1,0 +1,6 @@
+From: "X X" <xx@example.org>
+To: "Y Y" <yy@example.org>
+CC: zz@example.org
+Subject: Test
+
+Email content

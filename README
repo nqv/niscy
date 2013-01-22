@@ -1,8 +1,49 @@
 nisc - Not Intelligent SMTP Client
 
-This is just another stupid SMTP client that can send email via a SMTP server.
+This is just another stupid SMTP client that can send raw email messages.
 The goal of this project is to create a minimal client for embedded systems
-which need to support SSL/TLS. 
+which need to support SSL/TLS.
 
 SSL libraries supported:
 - axTLS
+
+Other SSL/TLS libraries can be easily added by reimplementing
+smtp_{open,close,read,write}().
+
+Synopsis
+--------
+
+nisc [OPTION...] recipient...
+
+Options
+-------
+
+-a (login|plain)
+  Authentication method. Default: login.
+
+-d (DOMAIN)
+  Argument of SMTP command EHLO. Default: nisc.
+
+-h (HOST)
+  SMTP server.
+
+-p (PORT)
+  SMTP port. Default: 25.
+
+-s (tls,starttls)
+  Enable TLS or STARTTLS.
+  
+-F (ADDRESS)
+  Envelope-from address.
+
+-U (USERNAME)
+  SMTP authentication username.
+
+-P (PASSWORD)
+  SMTP authentication password.
+
+Examples
+--------
+
+nisc -Usmtp.example.org -sstarttls -Uxx -P "PaSs WoRd" -Fxx@example.org \
+  yy@example.org zz@example.org < email.txt
