@@ -32,7 +32,7 @@ static int create_socket(const char *addr, const char *port) {
 
     rv = getaddrinfo(addr, port, &hints, &info);
     if (rv != 0) {
-        NISC_ERR("getaddrinfo: %s\n", gai_strerror(rv));
+        NISC_ERR("getaddrinfo: %s.\n", gai_strerror(rv));
         return -1;
     }
 
@@ -40,19 +40,19 @@ static int create_socket(const char *addr, const char *port) {
     for (p = info; p != NULL; p = p->ai_next) {
         fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
         if (fd == -1) {
-            NISC_ERR("socket: %s", strerror(errno));
+            NISC_LOG("socket: %s.\n", strerror(errno));
             continue;
         }
         if (connect(fd, p->ai_addr, p->ai_addrlen) == -1) {
             close(fd);
-            NISC_ERR("connect: %s", strerror(errno));
+            NISC_LOG("connect: %s.\n", strerror(errno));
             continue;
         }
         break;
     }
     freeaddrinfo(info);
     if (p == NULL) {
-        NISC_ERR("Failed to connect\n");
+        NISC_ERR("Failed to connect.\n");
         return -1;
     }
 
@@ -61,11 +61,11 @@ static int create_socket(const char *addr, const char *port) {
     timeout.tv_usec = 0;
     if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (char *) &timeout,
             sizeof(timeout)) < 0) {
-        NISC_ERR("setsockopt SO_RCVTIMEO: %s\n", strerror(errno));
+        NISC_ERR("setsockopt SO_RCVTIMEO: %s.\n", strerror(errno));
     }
     if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (char *) &timeout,
             sizeof(timeout)) < 0) {
-        NISC_ERR("setsockopt SO_SNDTIMEO: %s\n", strerror(errno));
+        NISC_ERR("setsockopt SO_SNDTIMEO: %s.\n", strerror(errno));
     }
 
     return fd;
