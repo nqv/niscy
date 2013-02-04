@@ -45,5 +45,9 @@ Options
 Examples
 --------
 
-nisc -Usmtp.example.org -sstarttls -Uxx -P "PaSs WoRd" -Fxx@example.org \
+nisc -hsmtp.example.org -sstarttls -Uxx -P "PaSs WoRd" -Fxx@example.org \
   yy@example.org zz@example.org < email.txt
+
+Using gmail server:
+  Host: smtp.gmail.com
+  Security/Port: tls (port 465) or starttls (port 587)
