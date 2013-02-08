@@ -30,6 +30,7 @@ struct smtp_t {
     const char *pass;       /* Password */
     const char *domain;     /* Port */
     const char *auth;       /* Authentication method */
+    const char *cert;       /* Certificate file */
 
     const char *mail_from;  /* FROM address */
     const char **mail_to;   /* List of TO addresses */

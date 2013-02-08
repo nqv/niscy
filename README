@@ -21,8 +21,11 @@ Options
 -a (login,plain)
   Authentication method. Default: login.
 
+-c (CERTFILE)
+  Use specific x.509 certificate file.
+
 -d (DOMAIN)
-  Argument of SMTP command EHLO. Default: nisc.
+  Argument of SMTP command EHLO. Default: niscy.
 
 -h (HOST)
   SMTP server.

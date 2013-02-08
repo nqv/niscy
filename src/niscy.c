@@ -28,7 +28,7 @@ static struct smtp_t smtp_ = {
         .security   = NULL,
         .user       = NULL,
         .pass       = NULL,
-        .domain     = "nisc",
+        .domain     = "niscy",
         .auth       = NULL,
 
         .mail_from  = NULL,
@@ -67,6 +67,9 @@ static void parse_args(int argc, char **argv) {
             break;
         case 'a':   /* Authentication method */
             SAVE_ARG_(smtp_.auth, arg, argv, i);
+            break;
+        case 'c':   /* Certificate file */
+            SAVE_ARG_(smtp_.cert, arg, argv, i);
             break;
         case 'd':   /* Domain */
             SAVE_ARG_(smtp_.domain, arg, argv, i);
@@ -171,7 +174,7 @@ static int get_smtp_code() {
         len += rv;
         /* Find the last line */
         if (buf_[len - 1] == '\n') {
-            NI_LOG("[NISC] smtp read:\n%.*s\n", len, buf_);
+            NI_LOG("[NISCY] smtp read:\n%.*s\n", len, buf_);
             lastline = find_lastline(buf_, len - 1);
             if (lastline[3] == ' ') {
                 break;

@@ -107,10 +107,22 @@ int smtp_open(struct smtp_t *self) {
     }
     if (self->options & NI_OPTION_TLS) {  /* AxTLS */
 #ifdef NI_AXTLS
-        uint32_t options = SSL_SERVER_VERIFY_LATER | SSL_DISPLAY_STATES;
+        uint32_t options = SSL_SERVER_VERIFY_LATER;
+
+#if 0
+        options |= SSL_DISPLAY_STATES;
+#endif
         /* SSL context */
         self->ssl_ctx = ssl_ctx_new(options, 5);
         if (self->ssl_ctx == NULL) {
+            smtp_close(self);
+            return -1;
+        }
+        /* Certificate */
+        if (self->cert != NULL
+                && ssl_obj_load(self->ssl_ctx, SSL_OBJ_X509_CERT,
+                    self->cert, NULL) != SSL_OK) {
+            NI_ERR("Load certificate failed %s.\n", self->cert);
             smtp_close(self);
             return -1;
         }
