@@ -1,25 +1,25 @@
-/* nisc - Not Intelligent SMTP Client
+/* niscy - Not Intelligent SMTP Client Yet
  * Copyright (c) 2013, Quoc-Viet Nguyen
  * See LICENSE file for copyright and license details.
  */
 
-#ifndef NISC_H_
-#define NISC_H_
+#ifndef NISCY_H_
+#define NISCY_H_
 
 #include "version.h"
 
-#define NISC_ERR(...)                   fprintf(stderr, __VA_ARGS__)
+#define NI_ERR(...)                     fprintf(stderr, __VA_ARGS__)
 #ifdef DEBUG
-# define NISC_LOG(...)                  fprintf(stdout, __VA_ARGS__)
+# define NI_LOG(...)                    fprintf(stdout, __VA_ARGS__)
 #else
-# define NISC_LOG(...)
+# define NI_LOG(...)
 #endif
 
-#define NISC_MAX_RESPONSE_LEN           1024
-#define NISC_TIMEOUT                    30      /* Seconds */
+#define NI_MAX_RESPONSE_LEN             1024
+#define NI_TIMEOUT                      30      /* Seconds */
 
-#define NISC_OPTION_TLS                 (1 << 0)
-#define NISC_OPTION_STARTTLS            (1 << 1)
+#define NI_OPTION_TLS                   (1 << 0)
+#define NI_OPTION_STARTTLS              (1 << 1)
 
 struct smtp_t {
     const char *host;       /* Server */
@@ -50,6 +50,6 @@ int smtp_read(struct smtp_t *self, char *data, int sz);
 /* base64.c */
 int base64_encode(const char *in, int len, char *out, int sz);
 
-#endif /* NISC_H_ */
+#endif /* NISCY_H_ */
 
 /* vim: set ts=4 sw=4 expandtab: */

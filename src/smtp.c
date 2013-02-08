@@ -1,4 +1,4 @@
-/* nisc - Not Intelligent SMTP Client
+/* niscy - Not Intelligent SMTP Client Yet
  * Copyright (c) 2013, Quoc-Viet Nguyen
  * See LICENSE file for copyright and license details.
  */
@@ -14,11 +14,11 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 
-#ifdef NISC_AXTLS
+#ifdef NI_AXTLS
 #include <axTLS/ssl.h>
 #endif
 
-#include "nisc.h"
+#include "niscy.h"
 
 static int create_socket(const char *addr, const char *port) {
     struct addrinfo hints, *info, *p;
@@ -32,7 +32,7 @@ static int create_socket(const char *addr, const char *port) {
 
     rv = getaddrinfo(addr, port, &hints, &info);
     if (rv != 0) {
-        NISC_ERR("getaddrinfo: %s.\n", gai_strerror(rv));
+        NI_ERR("getaddrinfo: %s.\n", gai_strerror(rv));
         return -1;
     }
 
@@ -40,49 +40,49 @@ static int create_socket(const char *addr, const char *port) {
     for (p = info; p != NULL; p = p->ai_next) {
         fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
         if (fd == -1) {
-            NISC_LOG("socket: %s.\n", strerror(errno));
+            NI_LOG("socket: %s.\n", strerror(errno));
             continue;
         }
         if (connect(fd, p->ai_addr, p->ai_addrlen) == -1) {
             close(fd);
-            NISC_LOG("connect: %s.\n", strerror(errno));
+            NI_LOG("connect: %s.\n", strerror(errno));
             continue;
         }
         break;
     }
     freeaddrinfo(info);
     if (p == NULL) {
-        NISC_ERR("Failed to connect.\n");
+        NI_ERR("Failed to connect.\n");
         return -1;
     }
 
     /* Socket timeout */
-    timeout.tv_sec = NISC_TIMEOUT;
+    timeout.tv_sec = NI_TIMEOUT;
     timeout.tv_usec = 0;
     if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (char *) &timeout,
             sizeof(timeout)) < 0) {
-        NISC_ERR("setsockopt SO_RCVTIMEO: %s.\n", strerror(errno));
+        NI_ERR("setsockopt SO_RCVTIMEO: %s.\n", strerror(errno));
     }
     if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (char *) &timeout,
             sizeof(timeout)) < 0) {
-        NISC_ERR("setsockopt SO_SNDTIMEO: %s.\n", strerror(errno));
+        NI_ERR("setsockopt SO_SNDTIMEO: %s.\n", strerror(errno));
     }
 
     return fd;
 }
 
 int smtp_write(struct smtp_t *self, const char *data, int len) {
-    if (self->options & NISC_OPTION_TLS) {
-#ifdef NISC_AXTLS
+    if (self->options & NI_OPTION_TLS) {
+#ifdef NI_AXTLS
         return ssl_write(self->ssl, (const uint8_t *)data, len);
-#endif  /* NISC_AXTLS */
+#endif  /* NI_AXTLS */
     }
     return send(self->fd, data, len, MSG_NOSIGNAL);
 }
 
 int smtp_read(struct smtp_t *self, char *data, int sz) {
-    if (self->options & NISC_OPTION_TLS) {
-#ifdef NISC_AXTLS
+    if (self->options & NI_OPTION_TLS) {
+#ifdef NI_AXTLS
         uint8_t *out_data;
         int len;
 
@@ -91,7 +91,7 @@ int smtp_read(struct smtp_t *self, char *data, int sz) {
             memcpy(data, out_data, (len > sz) ? sz : len);
         }
         return len;
-#endif  /* NISC_AXTLS */
+#endif  /* NI_AXTLS */
     }
     return recv(self->fd, data, sz, 0);
 }
@@ -105,8 +105,8 @@ int smtp_open(struct smtp_t *self) {
             return -1;
         }
     }
-    if (self->options & NISC_OPTION_TLS) {  /* AxTLS */
-#ifdef NISC_AXTLS
+    if (self->options & NI_OPTION_TLS) {  /* AxTLS */
+#ifdef NI_AXTLS
         uint32_t options = SSL_SERVER_VERIFY_LATER | SSL_DISPLAY_STATES;
         /* SSL context */
         self->ssl_ctx = ssl_ctx_new(options, 5);
@@ -121,13 +121,13 @@ int smtp_open(struct smtp_t *self) {
             smtp_close(self);
             return -1;
         }
-#endif  /* NISC_AXTLS */
+#endif  /* NI_AXTLS */
     }
     return 0;
 }
 
 void smtp_close(struct smtp_t *self) {
-#ifdef NISC_AXTLS
+#ifdef NI_AXTLS
     if (self->ssl != NULL) {
         ssl_free(self->ssl);
         self->ssl = NULL;
@@ -136,7 +136,7 @@ void smtp_close(struct smtp_t *self) {
         ssl_ctx_free(self->ssl_ctx);
         self->ssl_ctx = NULL;
     }
-#endif  /* NISC_AXTLS */
+#endif  /* NI_AXTLS */
     if (self->fd != -1) {
         close(self->fd);
         self->fd = -1;

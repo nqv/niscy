@@ -1,1 +1,1 @@
-#define NISC_VERSION    "0.1"
+#define NISCY_VERSION   "0.1"

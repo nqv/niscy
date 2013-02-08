@@ -1,32 +1,13 @@
-# NISC - Not Intelligent SMTP Client
+# niscy - Not Intelligent SMTP Client Yet
 
-TLS ?= AXTLS
-AXTLS_CFLAGS ?= -I/mnt/src/axtls/trunk/_stage/include
-AXTLS_LDFLAGS ?= -L/mnt/src/axtls/trunk/_stage/lib
-AXTLS_LIBS ?= -laxtls
+include config.mk
 
-BIN = nisc
+BIN = niscy
 
 OBJ = \
 	src/smtp.o \
 	src/base64.o \
-	src/nisc.o
-
-CFLAGS += -Wall -Wextra
-#CFLAGS += -fstack-usage
-
-ifeq (${DEBUG},1)
-CFLAGS += -Werror -O0 -g -DDEBUG
-else
-CFLAGS += -DNDEBUG
-endif
-
-ifeq (${TLS},AXTLS)
-CFLAGS += -DNISC_AXTLS
-CFLAGS += ${AXTLS_CFLAGS}
-LDFLAGS += ${AXTLS_LDFLAGS}
-LIBS += ${AXTLS_LIBS}
-endif
+	src/niscy.o
 
 all: options ${BIN}
 
@@ -45,5 +26,8 @@ options:
 	@echo CC $<
 	@${CC} ${CFLAGS} -o $@ -c $<
 
+romfs:
+	${ROMFSINST} ${BIN} /bin/${BIN}
+
 clean:
-	@rm -rf ${BIN} src/*.o src/*.su
+	rm -rf ${BIN} ${BIN}.gdb src/*.o src/*.su src/*.gdb

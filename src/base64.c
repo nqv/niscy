@@ -1,4 +1,6 @@
-/* nisc - Not Intelligent SMTP Client
+/* niscy - Not Intelligent SMTP Client Yet
+ * Copyright (c) 2013, Quoc-Viet Nguyen
+ * See LICENSE file for copyright and license details.
  */
 
 #include <inttypes.h>

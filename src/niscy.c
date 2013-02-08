@@ -1,4 +1,4 @@
-/* nisc - Not Intelligent SMTP Client
+/* niscy - Not Intelligent SMTP Client Yet
  * Copyright (c) 2013, Quoc-Viet Nguyen
  * See LICENSE file for copyright and license details.
  */
@@ -8,7 +8,7 @@
 #include <string.h>
 #include <time.h>
 
-#include "nisc.h"
+#include "niscy.h"
 
 #define SAVE_ARG_(var, arg, list, idx) {    \
         if (arg[2] == '\0') {               \
@@ -20,7 +20,7 @@
 
 #define IS_EMPTY_(str)          ((str) == NULL || (str)[0] == '\0')
 
-static char buf_[NISC_MAX_RESPONSE_LEN];
+static char buf_[NI_MAX_RESPONSE_LEN];
 
 static struct smtp_t smtp_ = {
         .host       = "127.0.0.1",
@@ -88,33 +88,33 @@ static void parse_args(int argc, char **argv) {
 
 static int check_settings() {
     if (IS_EMPTY_(smtp_.host)) {
-        NISC_ERR("Host must not be empty.\n");
+        NI_ERR("Host must not be empty.\n");
         return -1;
     }
     if (IS_EMPTY_(smtp_.port)) {
-        NISC_ERR("Port must not be empty.\n");
+        NI_ERR("Port must not be empty.\n");
         return -1;
     }
     if (IS_EMPTY_(smtp_.domain)) {
-        NISC_ERR("Domain must not be empty.\n");
+        NI_ERR("Domain must not be empty.\n");
         return -1;
     }
     if (IS_EMPTY_(smtp_.mail_from)) {
-        NISC_ERR("FROM address must not be empty.\n");
+        NI_ERR("FROM address must not be empty.\n");
         return -1;
     }
     if ((smtp_.mail_to == NULL) || (*smtp_.mail_to == NULL)) {
-        NISC_ERR("Receipt address must not be empty.\n");
+        NI_ERR("Receipt address must not be empty.\n");
         return -1;
     }
     /* Enable TLS */
     if (smtp_.security != NULL) {
         if (strcasecmp(smtp_.security, "starttls") == 0) {
-            smtp_.options |= (NISC_OPTION_TLS | NISC_OPTION_STARTTLS);
+            smtp_.options |= (NI_OPTION_TLS | NI_OPTION_STARTTLS);
         } else if (strcasecmp(smtp_.security, "tls") == 0) {
-            smtp_.options |= NISC_OPTION_TLS;
+            smtp_.options |= NI_OPTION_TLS;
         } else {
-            NISC_ERR("Encrypted method is not supported.\n");
+            NI_ERR("Encrypted method is not supported.\n");
             return -1;
         }
     }
@@ -171,7 +171,7 @@ static int get_smtp_code() {
         len += rv;
         /* Find the last line */
         if (buf_[len - 1] == '\n') {
-            NISC_LOG("[NISC] smtp read:\n%.*s\n", len, buf_);
+            NI_LOG("[NISC] smtp read:\n%.*s\n", len, buf_);
             lastline = find_lastline(buf_, len - 1);
             if (lastline[3] == ' ') {
                 break;
@@ -193,12 +193,12 @@ static int probe() {
     int len;
 
     if (smtp_open(&smtp_) != 0) {
-        NISC_ERR("Could not connect to server.\n");
+        NI_ERR("Could not connect to server.\n");
         return 1;
     }
     len = get_smtp_code();
     if (len < 200 || len >= 300) {
-        NISC_ERR("Unexpected server response: %d.\n", len);
+        NI_ERR("Unexpected server response: %d.\n", len);
         return -1;
     }
     return 0;
@@ -216,7 +216,7 @@ static int ehlo() {
     /* Check response code */
     len = get_smtp_code();
     if (len < 200 || len >= 300) {
-        NISC_ERR("Unexpected EHLO response: %d.\n", len);
+        NI_ERR("Unexpected EHLO response: %d.\n", len);
         return -1;
     }
     return 0;
@@ -231,7 +231,7 @@ static int starttls() {
     }
     len = get_smtp_code();
     if (len < 200 || len >= 300) {
-        NISC_ERR("Server does not accept STARTTLS: %d.\n", len);
+        NI_ERR("Server does not accept STARTTLS: %d.\n", len);
         return -1;
     }
     return 0;
@@ -246,13 +246,13 @@ static int auth_login() {
     }
     len = get_smtp_code();
     if (len < 300 || len >= 400) {
-        NISC_ERR("Unexpected AUTH LOGIN response: %d.\n", len);
+        NI_ERR("Unexpected AUTH LOGIN response: %d.\n", len);
         return -1;
     }
     /* Username */
     len = base64_encode(smtp_.user, strlen(smtp_.user), buf_,
             sizeof(buf_) - 2);      /* Reserved for \r\n */
-    NISC_LOG(">>> User [%s] / %d\n", buf_, len);
+    NI_LOG(">>> User [%s] / %d\n", buf_, len);
     if (len < 0) {
         return -1;
     }
@@ -263,7 +263,7 @@ static int auth_login() {
     }
     len = get_smtp_code();
     if (len < 300 || len >= 400) {
-        NISC_ERR("Unexpected AUTH/Username response: %d.\n", len);
+        NI_ERR("Unexpected AUTH/Username response: %d.\n", len);
         return -1;
     }
     /* Password */
@@ -271,7 +271,7 @@ static int auth_login() {
         len = base64_encode(smtp_.pass, strlen(smtp_.pass), buf_,
                 sizeof(buf_) - 2);  /* Reserved for \r\n */
         if (len < 0) {
-            NISC_ERR("Could not encode password.\n");
+            NI_ERR("Could not encode password.\n");
             return -1;
         }
     } else {
@@ -284,7 +284,7 @@ static int auth_login() {
     }
     len = get_smtp_code();
     if (len < 200 || len >= 300) {
-        NISC_ERR("Authentication failed %d.\n", len);
+        NI_ERR("Authentication failed %d.\n", len);
         return -1;
     }
     return 0;
@@ -303,7 +303,7 @@ static int auth_plain() {
     }
     len = get_smtp_code();
     if (len < 300 || len >= 400) {
-        NISC_ERR("Unexpected AUTH PLAIN response: %d.\n", len);
+        NI_ERR("Unexpected AUTH PLAIN response: %d.\n", len);
         return -1;
     }
     /* Authorization */
@@ -321,7 +321,7 @@ static int auth_plain() {
     /* Encode and send */
     len = base64_encode(message, len, buf_, sizeof(buf_) - 2);
     if (len < 0) {
-        NISC_ERR("Could not encode authentication.\n");
+        NI_ERR("Could not encode authentication.\n");
         return -1;
     }
     buf_[len++] = '\r';
@@ -331,7 +331,7 @@ static int auth_plain() {
     }
     len = get_smtp_code();
     if (len < 200 || len >= 300) {
-        NISC_ERR("Authentication failed %d.\n", len);
+        NI_ERR("Authentication failed %d.\n", len);
         return -1;
     }
     return 0;
@@ -346,7 +346,7 @@ static int mail_from() {
     }
     len = get_smtp_code();
     if (len < 200 || len >= 300) {
-        NISC_ERR("Invalid MAIL FROM %d.\n", len);
+        NI_ERR("Invalid MAIL FROM %d.\n", len);
         return -1;
     }
     return 0;
@@ -369,7 +369,7 @@ static int rcpt_to() {
         }
         len = get_smtp_code();
         if (len < 200 || len >= 300) {
-            NISC_ERR("Invalid RCPT TO <%s>: %d.\n", addr, len);
+            NI_ERR("Invalid RCPT TO <%s>: %d.\n", addr, len);
             /* Continue */
         } else {
             ++count;
@@ -386,12 +386,12 @@ static int mail_data() {
     }
     len = get_smtp_code();
     if (len < 300 || len >= 400) {
-        NISC_ERR("Unexpected DATA response: %d.\n", len);
+        NI_ERR("Unexpected DATA response: %d.\n", len);
         return -1;
     }
     /* Append our headers */
     len = snprintf(buf_, sizeof(buf_), "Received: by %s"
-            " (NISC v" NISC_VERSION "); ", smtp_.domain);
+            " (NISCY v" NISCY_VERSION "); ", smtp_.domain);
 
     len += format_date(buf_ + len, sizeof(buf_) - len);
     buf_[len++] = '\r';
@@ -454,7 +454,7 @@ static int mail_stream(FILE *stream) {
 
     len = get_smtp_code();
     if (len < 200 || len >= 300) {
-        NISC_ERR("Could not send message: %d.\n", len);
+        NI_ERR("Could not send message: %d.\n", len);
         return -1;
     }
     return 0;
@@ -462,18 +462,18 @@ static int mail_stream(FILE *stream) {
 
 /* Main functions */
 
-static int nisc_connect() {
-    if (smtp_.options & NISC_OPTION_STARTTLS) {
+static int niscy_connect() {
+    if (smtp_.options & NI_OPTION_STARTTLS) {
         /* Temporary disable SSL handshaking to ask server for STARTTLS */
-        smtp_.options &= ~NISC_OPTION_TLS;
+        smtp_.options &= ~NI_OPTION_TLS;
         if ((probe() != 0) || (ehlo() != 0) || (starttls() != 0)) {
             smtp_close(&smtp_);
             return -1;
         }
         /* Re-enable SSL and negotiate again */
-        smtp_.options |= NISC_OPTION_TLS;
+        smtp_.options |= NI_OPTION_TLS;
         if (smtp_open(&smtp_) != 0) {
-            NISC_ERR("Could not negotiate secure connection.\n");
+            NI_ERR("Could not negotiate secure connection.\n");
             smtp_close(&smtp_);
             return -1;
         }
@@ -486,17 +486,17 @@ static int nisc_connect() {
     return 0;
 }
 
-static void nisc_disconnect() {
+static void niscy_disconnect() {
     smtp_write(&smtp_, "QUIT\r\n", 6);
     smtp_close(&smtp_);
 
-    NISC_LOG("Bye.\n");
+    NI_LOG("Bye.\n");
 }
 
 /* Server requires login
  * username must not be empty
  */
-static int nisc_auth() {
+static int niscy_auth() {
     if (smtp_.user != NULL) {
         if (smtp_.auth == NULL || strcasecmp(smtp_.auth, "login") == 0) {
             return auth_login();
@@ -504,16 +504,16 @@ static int nisc_auth() {
         if (strcasecmp(smtp_.auth, "plain") == 0) {
             return auth_plain();
         }
-        NISC_ERR("Authentication method is not supported: %s.\n", smtp_.auth);
+        NI_ERR("Authentication method is not supported: %s.\n", smtp_.auth);
         return -1;
     } else {
-        NISC_LOG("Not to authenticate.\n");
+        NI_LOG("Not to authenticate.\n");
     }
     return 0;
 }
 
 /* Send mail body */
-static int nisc_mail() {
+static int niscy_mail() {
     if ((mail_from() != 0)
             || (rcpt_to() != 0)
             || (mail_data() != 0)
@@ -526,14 +526,14 @@ static int nisc_mail() {
 int main(int argc, char **argv) {
     parse_args(argc, argv);
 
-    if (check_settings() != 0 || (nisc_connect() != 0)) {
+    if (check_settings() != 0 || (niscy_connect() != 0)) {
         return 1;
     }
-    if ((nisc_auth() != 0) || (nisc_mail() != 0)) {
-        nisc_disconnect();
+    if ((niscy_auth() != 0) || (niscy_mail() != 0)) {
+        niscy_disconnect();
         return 1;
     }
-    nisc_disconnect();
+    niscy_disconnect();
     return 0;
 }
 
