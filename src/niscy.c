@@ -10,13 +10,8 @@
 
 #include "niscy.h"
 
-#define SAVE_ARG_(var, arg, list, idx) {    \
-        if (arg[2] == '\0') {               \
-            var = list[++idx];              \
-        } else {                            \
-            var = &arg[2];                  \
-        }                                   \
-    }
+#define SAVE_ARG_(var, arg, list, idx)      \
+        var = (arg[2] == '\0') ? list[++idx] : &arg[2]
 
 #define IS_EMPTY_(str)          ((str) == NULL || (str)[0] == '\0')
 
@@ -44,10 +39,10 @@ static struct smtp_t smtp_ = {
 /* Helpers */
 
 static void parse_args(int argc, char **argv) {
-    int i = 1;
+    int i;
     char *arg;
 
-    while (i < argc) {
+    for (i = 1; i < argc; ++i) {
         arg = argv[i];
         /* Assume that the receipt addresses are from the first argument
          * that does not start with '-' */
@@ -84,8 +79,6 @@ static void parse_args(int argc, char **argv) {
             SAVE_ARG_(smtp_.security, arg, argv, i);
             break;
         }
-        /* Advance to next argument */
-        ++i;
     }
 }
 
