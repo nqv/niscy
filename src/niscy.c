@@ -206,6 +206,9 @@ static int ehlo() {
     /* Try EHLO if username is provided */
     len = snprintf(buf_, sizeof(buf_),
             (smtp_.user != NULL) ? "EHLO %s\r\n" : "HELO %s\r\n", smtp_.domain);
+    if (len >= (int)sizeof(buf_)) {
+        return -1;              /* Buffer is not large enough */
+    }
     if (smtp_write(&smtp_, buf_, len) <= 0) {
         return -1;
     }
@@ -302,18 +305,14 @@ static int auth_plain() {
         NI_ERR("Unexpected AUTH PLAIN response: %d.\n", len);
         return -1;
     }
-    /* Authorization */
-    len = snprintf(message, sizeof(message), "%s", smtp_.user);
-    message[len++] = '\0';
-    /* Authentication */
-    len += snprintf(message + len, sizeof(message) - len, "%s", smtp_.user);
-    message[len++] = '\0';
-    /* Password */
-    if (smtp_.pass != NULL) {
-        len += snprintf(message + len, sizeof(message) - len, "%s", smtp_.pass);
+    /* Authorization & authentication */
+    len = snprintf(message, sizeof(message), "%s%c%s%c%s",
+            smtp_.user, '\0', smtp_.user, '\0',
+            /* Password might be empty */
+            (smtp_.pass != NULL) ? smtp_.pass : "");
+    if (len >= (int)sizeof(message)) {
+        return -1;              /* Buffer is not large enough */
     }
-    message[len++] = '\0';
-
     /* Encode and send */
     len = base64_encode(message, len, buf_, sizeof(buf_) - 2);
     if (len < 0) {
@@ -337,6 +336,9 @@ static int mail_from() {
     int len;
 
     len = snprintf(buf_, sizeof(buf_), "MAIL FROM:<%s>\r\n", smtp_.mail_from);
+    if (len >= (int)sizeof(buf_)) {
+        return -1;              /* Buffer is not large enough */
+    }
     if (smtp_write(&smtp_, buf_, len) <= 0) {
         return -1;
     }
@@ -360,6 +362,9 @@ static int rcpt_to() {
             continue;
         }
         len = snprintf(buf_, sizeof(buf_), "RCPT TO:<%s>\r\n", addr);
+        if (len >= (int)sizeof(buf_)) {
+            return -1;          /* Buffer is not large enough */
+        }
         if (smtp_write(&smtp_, buf_, len) <= 0) {
             return -1;
         }
@@ -388,6 +393,9 @@ static int mail_data() {
     /* Append our headers */
     len = snprintf(buf_, sizeof(buf_), "Received: by %s"
             " (NISCY v" NISCY_VERSION "); ", smtp_.domain);
+    if (len >= (int)sizeof(buf_)) {
+        return -1;              /* Buffer is not large enough */
+    }
 
     len += format_date(buf_ + len, sizeof(buf_) - len);
     buf_[len++] = '\r';
